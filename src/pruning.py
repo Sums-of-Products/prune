@@ -1,93 +1,60 @@
 import numpy as np
-from scipy.special import logsumexp
+from scipy.special import logsumexp, binom
 from itertools import chain, combinations
-from scipy.special import binom
+from functools import lru_cache
 
+class ScorePruner:
+    def __init__(self, _scores, _K, _eps, _b):
+        self.scores = _scores
+        self.K = _K
+        self.beta_R = 1 / _K
+        self.eps = _eps
+        self.b = _b
 
-K = None
-beta_R = None
-eps = None
-scores = None
-b = None
+    def prune_scores(self):
+        orig_count = self.count_scores()
+        vertices = list(self.scores.keys())
 
+        for i in vertices:
+            self.prune_scores_node(i)
 
-def init_pruning(_scores, _K, _eps, _b):
-    global scores, K, eps, beta_R, b
-    scores = _scores
-    K = _K
-    beta_R = 1 / K
-    eps = _eps
-    b = _b
+        pruned_count = self.count_scores()
+        print(f'b={self.b} From {orig_count} to {pruned_count}')
 
+    def count_scores(self):
+        return sum(len(s) for s in self.scores.values())
 
-def prune_scores():
-    global scores, eps
+    @lru_cache(maxsize=None)
+    def psi(self, i, j, S):
+        Rs = np.array([frozenset(subset)
+                       for subset in chain.from_iterable(combinations(S, r)
+                                                         for r in range(len(S)+1))
+                       if j in subset])
+        res = [self.pi(i, R) + np.log(self.w(R, S)) for R in Rs]
+        return logsumexp(res)
 
-    orig_count = count_scores(scores)
-    vertices = list(scores.keys())
+    def w(self, R, S):
+        return (1 + self.beta_R) ** (len(R) - self.K) * (self.beta_R) ** (len(S) - len(R))
 
-    for i in vertices:
-        prune_scores_node(i)
+    @lru_cache(maxsize=None)
+    def pi(self, v, pa_i):
+        k = len(pa_i)
+        n = len(self.scores.keys())
 
-    pruned_count = count_scores(scores)
-    print(f'b={b} From {orig_count} to {pruned_count}')
+        try:
+            res = self.scores[v][pa_i]
+            prior = np.log(1 / binom(n, k))
+            res += prior
+        except KeyError:
+            res = -np.inf
 
+        return res * self.b
 
-def count_scores(scores):
-    count = 0
-    for v in list(scores.keys()):
-        count += len(scores[v])
-    return count
-
-
-def psi(i, j, S: frozenset[int]):
-    global scores
-
-    Rs = np.array([frozenset(subset)
-                   for subset in chain.from_iterable(combinations(list(S), r)
-                                                     for r in range(len(S)+1))
-                  if j in subset])
-    res = [pi(i, R)+np.log(w(R, S)) for R in Rs]
-    return logsumexp(res)
-
-
-def w(R, S):
-    return (1+beta_R)**(len(R)-K) * (beta_R)**(len(S)-len(R))
-
-
-def pi(v, pa_i):
-    global scores, b
-
-    k = len(pa_i)
-    n = len(scores.keys())
-
-    try:
-        res = scores[v][pa_i]
-
-        # Use Koivisto prior
-        prior = np.log(1 / binom(n, k))
-        res += prior
-    except KeyError:
-        res = -np.inf
-
-    return res*b
-
-
-def prune_scores_node(i):
-    global scores
-
-    prune_count = 0
-
-    for S in list(scores[i].keys()):
-        if (len(S) == 0):
-            break
-
-        is_prune = True
-        for j in list(S):
-            if (pi(i, S) >= (np.log(eps) + psi(i, j, S))):
-                is_prune = False
+    def prune_scores_node(self, i):
+        for S in list(self.scores[i].keys()):
+            if not S:
                 break
 
-        if (is_prune):
-            del scores[i][S]
-            prune_count += 1
+            is_prune = all(self.pi(i, S) < (np.log(self.eps) + self.psi(i, j, S)) for j in S)
+            if is_prune:
+                del self.scores[i][S]
