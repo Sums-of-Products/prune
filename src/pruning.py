@@ -53,7 +53,7 @@ class ScorePruner:
     def prune_scores_node(self, i):
         for S in list(self.scores[i].keys()):
             if not S:
-                break
+                continue
 
             is_prune = all(self.pi(i, S) < (np.log(self.eps) + self.psi(i, j, S)) for j in S)
             if is_prune:
