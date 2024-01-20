@@ -2,13 +2,14 @@ import numpy as np
 from scipy.special import logsumexp, binom
 from itertools import chain, combinations
 from functools import lru_cache
+import copy
 
 class ScorePruner:
     def __init__(self, _scores, _K, _eps, _b):
-        self.scores = _scores
+        self.scores = copy.deepcopy(_scores)
         self.K = _K
         self.beta_R = 1 / _K
-        self.eps = _eps
+        self.log_eps = np.log(_eps)
         self.b = _b
 
     def prune_scores(self):
@@ -21,17 +22,22 @@ class ScorePruner:
         pruned_count = self.count_scores()
         print(f'b={self.b} From {orig_count} to {pruned_count}')
 
+        return self.scores
+
     def count_scores(self):
         return sum(len(s) for s in self.scores.values())
 
     @lru_cache(maxsize=None)
     def psi(self, i, j, S):
-        Rs = np.array([frozenset(subset)
-                       for subset in chain.from_iterable(combinations(S, r)
-                                                         for r in range(len(S)+1))
-                       if j in subset])
-        res = [self.pi(i, R) + np.log(self.w(R, S)) for R in Rs]
-        return logsumexp(res)
+        S_without_j = set(S) - {j}
+        subsets_including_j = [frozenset({j} | set(subset))
+                            for r in range(len(S))
+                            for subset in combinations(S_without_j, r)]
+
+        pi_values = np.array([self.pi(i, R) for R in subsets_including_j])
+        w_values = np.array([self.w(R, S) for R in subsets_including_j])
+
+        return logsumexp(pi_values + np.log(w_values))
 
     def w(self, R, S):
         return (1 + self.beta_R) ** (len(R) - self.K) * (self.beta_R) ** (len(S) - len(R))
@@ -51,10 +57,16 @@ class ScorePruner:
         return res * self.b
 
     def prune_scores_node(self, i):
+        keys_to_delete = []
+
         for S in list(self.scores[i].keys()):
             if not S:
                 continue
-
-            is_prune = all(self.pi(i, S) < (np.log(self.eps) + self.psi(i, j, S)) for j in S)
+            
+            pi_S = self.pi(i, S)
+            is_prune = all(pi_S < (self.log_eps + self.psi(i, j, S)) for j in S)
             if is_prune:
-                del self.scores[i][S]
+                keys_to_delete.append(S)
+
+        for key in keys_to_delete:
+            del self.scores[i][key]

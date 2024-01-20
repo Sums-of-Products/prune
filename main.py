@@ -1,17 +1,16 @@
 from src.pruning import ScorePruner
 import matplotlib.pyplot as plt
-import copy
 import numpy as np
 
 from src.utils import read_scores_from_file
 
 
 # score_names = ['insurance-400', 'insurance-600']
-score_names = ['hailfinder-200', 'hailfinder-2000']
+score_names = ['hailfinder-100', 'hailfinder-200', 'hailfinder-1000']
 
 
 # epss = [0.001, 0.01, 0.1, 0.4, np.e]
-epss = [0.001, 0.01, 0.1]
+epss = [1e-6,1e-5]
 n = len(score_names)
 
 all_values = []
@@ -28,10 +27,9 @@ for i in range(0, n):
         scores = orig_scores.copy()
 
         pruning_results = []
-        bs = np.linspace(0, 1, 8)
+        bs = np.linspace(0, 1, 4)
         for b in bs:
-            pruned_scores = copy.deepcopy(scores)
-            pruner = ScorePruner(pruned_scores, 3, eps, b)
+            pruner = ScorePruner(scores, 3, eps, b)
 
             pruner.prune_scores()
             pruned_scores_count = pruner.count_scores()
