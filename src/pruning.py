@@ -9,6 +9,7 @@ class ScorePruner:
         self.scores = copy.deepcopy(_scores)
         self.K = _K
         self.beta_R = 1 / _K
+        self.eps = _eps
         self.log_eps = np.log(_eps)
         self.b = _b
 
@@ -20,14 +21,14 @@ class ScorePruner:
             self.prune_scores_node(i)
 
         pruned_count = self.count_scores()
-        print(f'b={self.b} From {orig_count} to {pruned_count}')
+        print(f'b={self.b}, eps={self.eps} From {orig_count} to {pruned_count}')
 
         return self.scores
 
     def count_scores(self):
         return sum(len(s) for s in self.scores.values())
 
-    @lru_cache(maxsize=None)
+    # @lru_cache(maxsize=None)
     def psi(self, i, j, S):
         S_without_j = set(S) - {j}
         subsets_including_j = [frozenset({j} | set(subset))
@@ -42,14 +43,14 @@ class ScorePruner:
     def w(self, R, S):
         return (1 + self.beta_R) ** (len(R) - self.K) * (self.beta_R) ** (len(S) - len(R))
 
-    @lru_cache(maxsize=None)
+    # @lru_cache(maxsize=None)
     def pi(self, v, pa_i):
         k = len(pa_i)
         n = len(self.scores.keys())
 
         try:
             res = self.scores[v][pa_i]
-            prior = np.log(1 / binom(n, k))
+            prior = np.log(1 / binom(n - 1, k))
             res += prior
         except KeyError:
             res = -np.inf
