@@ -37,17 +37,18 @@ for i in range(0, n):
         percentages.append(percentage_left)
         all_percentages.append(percentage_left)
 
-    axs[i].set_xscale('log')
-    axs[i].plot(epss, percentages)
-    axs[i].scatter(epss, percentages)
-    axs[i].set_title(f'{score_name}')
-    axs[i].set_xlabel('Epsilon')
-    axs[i].legend()
-    axs[i].set_ylabel('Percentage of Scores Left')
+    np.save(f'data/res/pruning-stats-{score_name}', percentages)
+    # axs[i].set_xscale('log')
+    # axs[i].plot(epss, percentages)
+    # axs[i].scatter(epss, percentages)
+    # axs[i].set_title(f'{score_name}')
+    # axs[i].set_xlabel('Epsilon')
+    # axs[i].legend()
+    # axs[i].set_ylabel('Percentage of Scores Left')
 
-all_percentages = np.array(all_percentages)
-for ax in axs:
-    ax.set_ylim(all_percentages.min() * 0.99, all_percentages.max()*1.01)
-plt.legend()
-plt.show()
+# all_percentages = np.array(all_percentages)
+# for ax in axs:
+#     ax.set_ylim(all_percentages.min() * 0.95, all_percentages.max()*1.05)
+# plt.legend()
+# plt.show()
 
