@@ -37,7 +37,7 @@ for i in range(0, n):
         percentages.append(percentage_left)
         all_percentages.append(percentage_left)
 
-    np.save(f'data/res/pruning-stats-{score_name}', percentages)
+    np.save(f'data/res/pruning-stats-{score_name}', [percentages, epss])
     # axs[i].set_xscale('log')
     # axs[i].plot(epss, percentages)
     # axs[i].scatter(epss, percentages)
